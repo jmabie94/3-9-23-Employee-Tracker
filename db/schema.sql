@@ -18,15 +18,18 @@ CREATE TABLE roles (
     ON DELETE SET NULL
 );
 
-CREATE TABLE employee (
+CREATE TABLE employees (
     id INT NOT NULL PRIMARY KEY,
     first_name VARCHAR(30),
     last_name VARCHAR(30),
     role_id INT,
-    manager_id INT,
     FOREIGN KEY (role_id)
     REFERENCES roles(id)
-    ON DELETE SET NULL
+    ON DELETE SET NULL,
     /* manager_id needs to be foreign key
     must reference the employee ID of a different employee with role "manager" in the same department, not sure how to format a multilayered reference like this */
+    manager_id INT,
+    FOREIGN KEY (manager_id)
+    REFERENCES employees(id)
+    ON DELETE SET NULL
 );
