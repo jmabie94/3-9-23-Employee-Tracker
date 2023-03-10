@@ -17,7 +17,7 @@ function init() {
             type: "list",
             message: "What would you like to do?",
             name: "firstChoicePrompt",
-            choices: ["View All Departments", "View All Roles", "View All Employees", "Add A Department", "Add A Role", "Add An Employee", "Update An Employee Role"]
+            choices: ["View All Departments", "View All Roles", "View All Employees", "Add A Department", "Add A Role", "Add An Employee", "Update An Employee Role", "Done For Now"]
         }]).then(function (answers) {
             switch(answers.firstChoicePrompt) {
                 case "View All Departments":
@@ -41,6 +41,8 @@ function init() {
                 case "Update An Employee Role":
                     updateEmployee();
                     break;
+                case "Done For Now":
+                    console.log('Awesome! Whenever you want to add more, just run index.js again!')
                 
                 default:
                     console.log('An error has occured, please try again');
@@ -51,16 +53,19 @@ function init() {
         db.query('SELECT * FROM departments', function (err, results) {
             console.log(results);
         });
+        createWorkforce();
     };
     function viewRoles() {
         db.query('SELECT * FROM roles', function (err, results) {
             console.log(results);
         });
+        createWorkforce();
     };
     function viewEmployees() {
         db.query('SELECT * FROM employees', function (err, results) {
             console.log(results);
         });
+        createWorkforce();
     };
     function addDepartment() {
         inquirer.prompt([{
@@ -76,6 +81,7 @@ function init() {
                     console.log(res.affectedRows + " new department added!\n");
                 }
             );
+            createWorkforce();
         });
     };
     function addRole() {
@@ -106,6 +112,7 @@ function init() {
                     console.log(res.affectedRows + " new role added!\n");
                 }
             );
+            createWorkforce();
         });
     };
     function addEmployee() {
@@ -142,6 +149,7 @@ function init() {
                     console.log(res.affectedRows + " new employee added!\n");
                 }
             );
+            createWorkforce();
         });
     };
     function updateEmployee() {
@@ -181,6 +189,9 @@ function init() {
                 default:
                     console.log('An error has occured, please try again');
             }
+            // do I add these functions here? or as part of another .then?
+            // either way, how do I pass through answers.employeeSelect into the next batch of functions?
+            // is there an easier way to do these updates directly rather than routing through multiple additional functions?
         });
     };
 };
