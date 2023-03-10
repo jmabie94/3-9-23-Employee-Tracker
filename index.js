@@ -1,6 +1,6 @@
 const mysql = require('mysql2');
 const inquirer = require('inquirer');
-const { resolve } = require('path');
+/* const { resolve } = require('path'); */
 
 const db = mysql.createConnection(
     {
@@ -100,7 +100,7 @@ function viewRoles() {
     SELECT role_id AS id, role_title AS title, dept_name AS department, role_salary AS salary 
     FROM roles
     LEFT JOIN departments 
-    ON roles.department_id = departments.id`;
+    ON roles.dept_id = departments.dept_id`;
     db.query(sql, (err, res) => {
         if (err) {
             console.log(err.message);
@@ -115,15 +115,15 @@ function viewRoles() {
 // reformatting everything, hyper-specifying
 function viewEmployees() {
     const sql = `
-    SELECT e.emp_id AS id, concat(e.first_name, ' ', e.last_name) AS employee, e.role_title AS title, e.role_salary AS salary, e.dept_name AS department,
+    SELECT e.emp_id AS id, concat(e.first_name, ' ', e.last_name) AS employee, e.role_title AS title, e.role_salary AS salary, e.dept_name AS department, 
     CASE WHEN e.manager_id = e.emp_id 
     THEN concat('N/A') 
     ELSE concat(m.first_name, ' ', m.last_name) 
-    END AS manager
+    END AS manager 
     FROM (SELECT * FROM employees 
-    LEFT JOIN roles ON employees.role_id = roles.role_id 
-    LEFT JOIN departments ON roles.dept_name = departments.dept_id) 
-    AS e, employees m WHERE m.emp_id = e.manager_id`;
+    LEFT JOIN roles ON employees.role_id = roles.r_id 
+    LEFT JOIN departments ON roles.dept_id = departments.d_id) AS e, employees m 
+    WHERE m.emp_id = e.manager_id`;
     db.query(sql, (err, res) => {
         if (err) {
             console.log(err.message);
