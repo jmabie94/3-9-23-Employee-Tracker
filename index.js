@@ -1,5 +1,6 @@
 const mysql = require('mysql2');
 const inquirer = require('inquirer');
+require('console.table');
 /* const { resolve } = require('path'); */
 
 const db = mysql.createConnection(
@@ -87,7 +88,8 @@ function viewDepartments() {
         if (err) {
             console.log(err.message);
         }
-        console.log(res);
+        console.log("\n");
+        console.table(res);
         setTimeout(() => {
             createWorkforce();
         }, 1000);
@@ -105,7 +107,8 @@ function viewRoles() {
         if (err) {
             console.log(err.message);
         }
-        console.log(res);
+        console.log("\n");
+        console.table(res);
         setTimeout(() => {
             createWorkforce();
         }, 1000);
@@ -128,7 +131,8 @@ function viewEmployees() {
         if (err) {
             console.log(err.message);
         }
-        console.log(res);
+        console.log("\n");
+        console.table(res);
         setTimeout(() => {
             createWorkforce();
         }, 1000);
@@ -180,7 +184,8 @@ function viewEbyD() {
                 if (err) {
                     console.log(err.message);
                 }
-                console.log(res);
+                console.log("\n");
+                console.table(res);
                 setTimeout(() => {
                     createWorkforce();
                 }, 1000);
