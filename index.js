@@ -34,7 +34,7 @@ function createWorkforce() {
             "Add A Role", 
             "Add An Employee", 
             "Update An Employee Role",
-            "Update An Employee Manager", 
+            /* "Update An Employee Manager", */ 
             "Done For Now"],
     }]).then(function (answers) {
         switch(answers.firstChoicePrompt) {
@@ -65,9 +65,9 @@ function createWorkforce() {
             case "Update An Employee Role":
                 updateEmployee();
                 break;
-            case "Update An Employee Manager":
+            /* case "Update An Employee Manager":
                 updateManager();
-                break;
+                break; */
             case "Done For Now":
                 console.log('Awesome! Whenever you want to add more, just run index.js again!');
                 endProgram();
@@ -115,7 +115,7 @@ function viewRoles() {
 // reformatting everything, hyper-specifying
 function viewEmployees() {
     const sql = `
-    SELECT e.emp_id as id, concat(e.first_name, ' ', e.last_name) AS employee, e.role_title AS title, e.role_salary AS salary, e.dept_name AS department,
+    SELECT e.emp_id AS id, concat(e.first_name, ' ', e.last_name) AS employee, e.role_title AS title, e.role_salary AS salary, e.dept_name AS department,
     CASE WHEN e.manager_id = e.emp_id 
     THEN concat('N/A') 
     ELSE concat(m.first_name, ' ', m.last_name) 
@@ -632,12 +632,12 @@ function updateEmployee() {
     });
 };
 
-function updateManager() {
+/* function updateManager() {
     // add functionality to update Employee's manager
     // copy the managerId process from addEmployee
     // copy the getEmployees promise from updateEmployee
     // use the promise.all format from updateEmployee, target manager same format as in addEmployee
-}
+} */
 
 // add functions to delete departments, roles and employees!!!
 
