@@ -51,7 +51,7 @@ function createWorkforce() {
             case "View All Employees By Department":
                 viewEbyD();
                 break;
-            case "View All Employes By Manager":
+            case "View All Employees By Manager":
                 viewEbyM();
                 break;
             case "Add A Department":
@@ -83,7 +83,7 @@ function createWorkforce() {
 
 // reformatting everything
 function viewDepartments() {
-    const sql = `SELECT dept_id AS id, dept_name AS name FROM departments`;
+    const sql = `SELECT d_id AS id, dept_name AS name FROM departments`;
     db.query(sql, (err, res) => {
         if (err) {
             console.log(err.message);
@@ -99,10 +99,10 @@ function viewDepartments() {
 // reformatting everything, specifying with LEFT JOINs
 function viewRoles() {
     const sql = `
-    SELECT role_id AS id, role_title AS title, dept_name AS department, role_salary AS salary 
+    SELECT r_id AS id, role_title AS title, dept_name AS department, role_salary AS salary 
     FROM roles
     LEFT JOIN departments 
-    ON roles.dept_id = departments.dept_id`;
+    ON roles.dept_id = departments.d_id`;
     db.query(sql, (err, res) => {
         if (err) {
             console.log(err.message);
@@ -116,6 +116,7 @@ function viewRoles() {
 };
 
 // reformatting everything, hyper-specifying
+// needs re-tooling so that managers also show up in the table, not just employees with managers
 function viewEmployees() {
     const sql = `
     SELECT e.emp_id AS id, concat(e.first_name, ' ', e.last_name) AS employee, e.role_title AS title, e.role_salary AS salary, e.dept_name AS department, 
@@ -176,9 +177,9 @@ function viewEbyD() {
             CASE WHEN e.manager_id = e.emp_id THEN concat('N/A')
             ELSE concat(m.first_name, ' ', m.last_name)
             END AS manager
-            FROM (SELECT * FROM employees LEFT JOIN roles ON employees.role_id = roles.role_id LEFT JOIN departments ON roles.dept_id = departments.dept_id) AS e, employees m
+            FROM (SELECT * FROM employees LEFT JOIN roles ON employees.role_id = roles.r_id LEFT JOIN departments ON roles.dept_id = departments.d_id) AS e, employees m
             WHERE m.emp_id = e.manager_id
-            AND dept_id = ?`;
+            AND d_id = ?`;
             const query = [deptId+1];
             db.query(sql, query, (err, res) => {
                 if (err) {
@@ -228,17 +229,22 @@ function viewEbyM() {
             },
         ]).then(({ managerId }) => {
             const sql = `
-            SELECT e.emp_id AS id, concat(e.first_name, ' ', e.last_name) AS employee, e.role_title, e.role_salary AS salary, e.dept_name AS department,
-            CASE WHEN e.manager_id = e.emp_id THEN concat('N/A') ELSE concat(m.first_name, ' ', m.last_name) END AS manager
-            FROM (SELECT * FROM employees LEFT JOIN employees ON employees.manager_id = employees.emp_id LEFT JOIN roles ON employees.role_id = roles.role_id LEFT JOIN departments ON roles.dept_id = departments.dept_id) AS e, employees m
+            SELECT e.emp_id AS id, concat(e.first_name, ' ', e.last_name) AS employee, e.role_title AS title, e.role_salary AS salary, e.dept_name AS department,
+            CASE WHEN e.manager_id = e.emp_id THEN concat('N/A') 
+            ELSE concat(m.first_name, ' ', m.last_name) 
+            END AS manager
+            FROM (SELECT * FROM employees 
+            LEFT JOIN roles ON employees.role_id = roles.r_id 
+            LEFT JOIN departments ON roles.dept_id = departments.d_id) AS e, employees m
             WHERE m.emp_id = e.manager_id
-            AND manager_id = ?`;
-            const query = [managerId];
+            AND e.manager_id = ?`;
+            const query = [managerId+1];
             db.query(sql, query, (err, res) => {
                 if (err) {
                     console.log(err.message);
                 }
-                console.log(res);
+                console.log("\n");
+                console.table(res);
                 setTimeout(() => {
                     createWorkforce();
                 }, 1000);
@@ -401,48 +407,31 @@ function addEmployee() {
             for (var i = 0; i < res.length; i++) {
                 activeManagArr.push(Object.values(res[i])[0]);
             }
-            activeManagArr.push("Show More");
+            activeManagArr.push("Employee Does Not Have A Manager");
+            activeManagArr.push("Create New Manager For This Employee");
             resolve(activeManagArr);
         });
     });
 
-    // extending the manager promise to provide additional options
-    const getManagers = new Promise((resolve, reject) => {
-        var managArr = [];
+    // adding an Employee Array so that if the correct manager is not already managing other employees, another employee can be selected as the new employee's manager
+    const getEmployees = new Promise((resolve, reject) => {
+        var empArr = [];
         const sql = `
-        SELECT concat(m.first_name, ' ', m.last_name) AS manager 
-        FROM employees m`;
+        SELECT first_name, last_name 
+        FROM employees`;
         db.query(sql, (err, res) => {
             if (err) {
                 console.log(err.message);
             }
             for (var i = 0; i < res.length; i++) {
-                managArr.push(Object.values(res[1])[0]);
+                empArr.push(Object.values(res[i])[0] + " " + Object.values(res[i])[1]);
             }
-            managArr.push("Employee does not have a manager");
-            resolve(managArr);
+            empArr.push("Manager Already Selected")
+            resolve(empArr);
         });
     });
 
-    // doing a promise so that the user's chosen manager can link to their ID
-    const getManagerId = new Promise((resolve, reject) => {
-        var managArrId = [];
-        const sql = `
-        SELECT DISTINCT m.emp_id AS manager 
-        FROM employees e, employees m 
-        WHERE m.emp_id = e.manager_id`;
-        db.query(sql, (err, res) => {
-            if (err) {
-                console.log(err.message);
-            }
-            for (var i = 0; i < res.length; i++) {
-                managArrId.push(Object.values(res[i])[0]);
-            }
-            resolve(managArrId);
-        });
-    });
-
-    Promise.all([getTitles, getActiveManagers, getManagers, getManagerId]).then(([titleArr, activeManagArr, managArr, managArrId]) => {
+    Promise.all([getTitles, getActiveManagers, getEmployees]).then(([titleArr, activeManagArr, empArr]) => {
         inquirer.prompt([
             {
                 type: "text",
@@ -487,46 +476,43 @@ function addEmployee() {
                 message: "Who is this employee's manager?",
                 choices: activeManagArr,
                 filter: (managerIdInput) => {
-                    if (managerIdInput === "Show More") {
+                    if (managerIdInput === "Employee Does Not Have A Manager" || managerIdInput === "Create New Manager For This Employee") {
                         return managerIdInput;
                     } else {
-                        return activeManagArr.indexOf(managerIdInput);
+                        return activeManagArr.indexOf(managerIdInput) + 1;
                     }
                 },
             },
             {
                 type: "list",
-                name: "managerId2",
-                message: "Who is this employee's manager?",
-                choices: managArr,
-                filter: (managerId2Input) => {
-                    if (managerId2Input === "Employee does not have a manager") {
-                        return managerId2Input;
+                name: "newManagerId",
+                message: "Which other employee will be the new employee's manager?",
+                choices: empArr,
+                filter: (newManagerIdInput) => {
+                    if (newManagerIdInput === "Manager Already Selected") {
+                        return newManagerIdInput;
                     } else {
-                        return managArr.indexOf(managerId2Input) + 1;
-                    }
-                },
-                when: ({ managerIdInput }) => {
-                    if (isNaN(managerIdInput) === true) {
-                        return true;
-                    } else {
-                        return false;
+                        return empArr.indexOf(newManagerIdInput) + 1;
                     }
                 },
             },
-        ]).then(({ firstName, lastName, roleId, managerId, managerId2 }) => {
+        ]).then(({ firstName, lastName, roleId, managerId, newManagerId}) => {
+            // if managerId = 0 or they don't have a manager, they ARE a manager with manager_id of NULL
+            // if user selects "create new manager" AND "manager already selected", they're notified in the console and the employee is created with a manager_id of NULL that can be updated
+            // if user selects "create new manager" AND selects an employee as a new manager, that employee's id is set as the new employee's manager_id
+            // if user simply selects one of the existing managers, that's the manager_id
             const getManagerId = () => {
-                if (isNaN(managerId)) {
-                    if(isNaN(managerId2)) {
-                        managArr.push(firstName + ' ' + lastName);
-                        return managArr.indexOf(firstName + ' ' + lastName);
-                    } else {
-                        return managerId2;
-                    }
+                if (managerId < 1 || managerId === "Employee Does Not Have A Manager") {
+                    return null;
+                } else if (managerId === "Create New Manager For This Employee" && newManagerId === "Manager Already Selected") {
+                    console.log("No manager was selected, please use the 'Update An Employee Manager' function to add one!")
+                    return null;
+                } else if (managerId === "Create New Manager For This Employee" && newManagerId !== "Manager Already Selected") {
+                    return newManagerId;
                 } else {
-                    return managArrId[managerId];
+                    return managerId;
                 };
-            }
+            };
             const managersId = getManagerId();
             const sql = `
             INSERT INTO employees (first_name, last_name, role_id, manager_id)

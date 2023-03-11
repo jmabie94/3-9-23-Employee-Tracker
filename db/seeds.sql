@@ -14,7 +14,7 @@ INSERT INTO roles (role_title, role_salary, dept_id)
 VALUES  ("Social Media Coordinator", 40000, 4),
         ("Customer Service Representative", 40000, 10),
         ("Accountant", 85000, 2),
-        ("Internal Counsel", 12000, 5),
+        ("Internal Counsel", 120000, 5),
         ("Web Developer", 80000, 9),
         ("Staffing Manager", 100000, 3),
         ("Secretary", 30000, 3),
