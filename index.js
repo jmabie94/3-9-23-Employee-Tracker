@@ -685,7 +685,7 @@ function updateManager() {
                 choices: empArr,
                 filter: (employeeNameInput) => {
                     if (employeeNameInput) {
-                        return empArr.indexOf(employeeNameInput);
+                        return empArr.indexOf(employeeNameInput) + 1;
                     }
                 },
             },
@@ -716,6 +716,7 @@ function updateManager() {
                 },
             },
         ]).then(({ employeeName, managerId, newManagerId }) => {
+            console.log(employeeName + " will be updated!\n")
             const getManagerId = () => {
                 if (managerId < 1 || managerId === "Employee No Longer Has A Manager") {
                     return null;
@@ -731,8 +732,8 @@ function updateManager() {
             const managersId = getManagerId();
             const sql = "UPDATE employees SET manager_id = ? WHERE emp_id = ?";
             const query = [
-                employeeName,
-                managersId
+                managersId,
+                employeeName
             ];
             db.query(sql, query, (err, res) => {
                 if (err) {
