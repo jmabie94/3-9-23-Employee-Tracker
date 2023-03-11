@@ -35,7 +35,7 @@ function createWorkforce() {
             "Add A Role", 
             "Add An Employee", 
             "Update An Employee Role",
-            /* "Update An Employee Manager", */ 
+            "Update An Employee Manager", 
             "Done For Now"],
     }]).then(function (answers) {
         switch(answers.firstChoicePrompt) {
@@ -66,9 +66,9 @@ function createWorkforce() {
             case "Update An Employee Role":
                 updateEmployee();
                 break;
-            /* case "Update An Employee Manager":
+            case "Update An Employee Manager":
                 updateManager();
-                break; */
+                break;
             case "Done For Now":
                 console.log('Awesome! Whenever you want to add more, just run index.js again!');
                 endProgram();
@@ -623,12 +623,137 @@ function updateEmployee() {
     });
 };
 
-/* function updateManager() {
-    // add functionality to update Employee's manager
-    // copy the managerId process from addEmployee
-    // copy the getEmployees promise from updateEmployee
-    // use the promise.all format from updateEmployee, target manager same format as in addEmployee
-} */
+function updateManager() {
+    const getActiveManagers = new Promise((resolve, reject) => {
+        var activeManagArr = [];
+        const sql = `
+        SELECT DISTINCT concat(m.first_name, ' ', m.last_name) AS manager 
+        FROM employees e, employees m 
+        WHERE m.emp_id = e.manager_id`;
+        db.query(sql, (err, res) => {
+            if (err) {
+                console.log(err.message);
+            }
+            for (var i = 0; i < res.length; i++) {
+                activeManagArr.push(Object.values(res[i])[0]);
+            }
+            activeManagArr.push("Employee No Longer Has A Manager");
+            activeManagArr.push("Create New Manager For This Employee");
+            resolve(activeManagArr);
+        });
+    });
+
+    const getEmployees = new Promise((resolve, reject) => {
+        var empArr = [];
+        const sql = `
+        SELECT first_name, last_name 
+        FROM employees`;
+        db.query(sql, (err, res) => {
+            if (err) {
+                console.log(err.message);
+            }
+            for (var i = 0; i < res.length; i++) {
+                empArr.push(Object.values(res[i])[0] + " " + Object.values(res[i])[1]);
+            }
+            resolve(empArr);
+        });
+    });
+
+    const getNewManager = new Promise((resolve, reject) => {
+        var newManagArr = [];
+        const sql = `
+        SELECT first_name, last_name
+        FROM employees`;
+        db.query(sql, (err, res) => {
+            if (err) {
+                console.log(err.message);
+            }
+            for (var i = 0; i < res.length; i++) {
+                newManagArr.push(Object.values(res[i])[0] + " " + Object.values(res[i])[1]);
+            }
+            newManagArr.push("Manager Already Selected");
+            resolve(newManagArr);
+        });
+    });
+
+    Promise.all([getActiveManagers, getEmployees, getNewManager]).then(([activeManagArr, empArr, newManagArr]) => {
+        inquirer.prompt([
+            {
+                type: "list",
+                name: "employeeName",
+                message: "Which employee needs updating?",
+                choices: empArr,
+                filter: (employeeNameInput) => {
+                    if (employeeNameInput) {
+                        return empArr.indexOf(employeeNameInput);
+                    }
+                },
+            },
+            {
+                type: "list",
+                name: "managerId",
+                message: "Who is their new manager?",
+                choices: activeManagArr,
+                filter: (managerIdInput) => {
+                    if (managerIdInput === "Employee No Longer Has A Manager" || managerIdInput === "Create New Manager For This Employee") {
+                        return managerIdInput;
+                    } else {
+                        return activeManagArr.indexOf(managerIdInput) + 1;
+                    }
+                },
+            },
+            {
+                type: "list",
+                name: "newManagerId",
+                message: "Which other employee will now be their manager?",
+                choices: newManagArr,
+                filter: (newManagerIdInput) => {
+                    if (newManagerIdInput === "Manager Already Selected") {
+                        return newManagerIdInput;
+                    } else {
+                        return newManagArr.indexOf(newManagerIdInput) + 1;
+                    }
+                },
+            },
+        ]).then(({ employeeName, managerId, newManagerId }) => {
+            const getManagerId = () => {
+                if (managerId < 1 || managerId === "Employee No Longer Has A Manager") {
+                    return null;
+                } else if (managerId === "Create New Manager For This Employee" && newManagerId === "Manager Already Selected") {
+                    console.log("No manager was selected, please use the 'Update An Employee Manager' function to add one!");
+                    return null;
+                } else if (managerId === "Create New Manager For This Employee" && newManagerId !== "Manager Already Selected") {
+                    return newManagerId;
+                } else {
+                    return managerId;
+                };
+            };
+            const managersId = getManagerId();
+            const sql = "UPDATE employees SET manager_id = ? WHERE emp_id = ?";
+            const query = [
+                employeeName,
+                managersId
+            ];
+            db.query(sql, query, (err, res) => {
+                if (err) {
+                    console.log(err.message);
+                }
+                console.log(res.affectedRows + " Employee Manager updated!\n");
+                inquirer.prompt([{
+                    type: "confirm",
+                    name: "viewResults",
+                    message: "Would you like to see the updated Employee?"
+                }]).then(({ viewResults }) => {
+                    if (viewResults) {
+                        viewEmployees();
+                    } else {
+                        createWorkforce();
+                    }
+                });
+            });
+        });
+    });
+};
 
 // add functions to delete departments, roles and employees!!!
 
