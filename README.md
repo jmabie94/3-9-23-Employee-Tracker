@@ -82,11 +82,13 @@ Next, open an integrated terminal in your cloned folder and do the following:
     run npm i
 
 After Node Packages have installed, open your MySQL:
+    ```mb
     mysql -u root -p
     *enter your password*
     SOURCE db/schema.sql
     SOURCE db/seeds.sql (optional, if you'd like a simple example roster of employees to start with)
     exit
+    ```
 
 Finally, after exiting MySQL:
 
