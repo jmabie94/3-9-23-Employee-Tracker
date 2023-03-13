@@ -2,7 +2,6 @@ const mysql = require('mysql2');
 const inquirer = require('inquirer');
 // try to see what the console.table requirement is underscoring over
 require('console.table');
-/* const { resolve } = require('path'); */
 
 const db = mysql.createConnection(
     {
@@ -198,13 +197,11 @@ function viewEbyD() {
 };
 
 // add a ViewEbyM (employee by manager) functionality, cloning viewEbyD()
-// try to figure out why new managers created in addEmployee() don't actually work with this function!
-// see if this function only works if the manager selected does not themselves have a manager, as that could be difficult to remedy!
 function viewEbyM() {
     const getActiveManagers = new Promise((resolve, reject) => {
         var activeManagArr = [];
         const sql = `
-        SELECT DISTINCT concat(m.first_name, ' ', m.last_name) AS manager 
+        SELECT DISTINCT m.emp_id, concat(m.first_name, ' ', m.last_name) AS manager 
         FROM employees e, employees m 
         WHERE m.emp_id = e.manager_id`;
         db.query(sql, (err, res) => {
@@ -212,8 +209,12 @@ function viewEbyM() {
                 console.log(err.message);
             }
             for (var i = 0; i < res.length; i++) {
-                activeManagArr.push(Object.values(res[i])[0]);
+                activeManagArr.push({
+                    name: Object.values(res[i])[1],
+                    value: Object.values(res[i])[0],
+                });
             }
+            /* console.log(activeManagArr); */
             resolve(activeManagArr);
         });
     });
@@ -225,11 +226,6 @@ function viewEbyM() {
                 name: "managerId",
                 message: "Choose a manager whose employees to view",
                 choices: activeManagArr,
-                filter: (managerIdInput) => {
-                    if (managerIdInput) {
-                        return activeManagArr.indexOf(managerIdInput);
-                    }
-                },
             },
         ]).then(({ managerId }) => {
             const sql = `
@@ -242,7 +238,7 @@ function viewEbyM() {
             LEFT JOIN departments ON roles.dept_id = departments.d_id) AS e, employees m
             WHERE m.emp_id = e.manager_id
             AND e.manager_id = ?`;
-            const query = [managerId+1];
+            const query = [managerId];
             db.query(sql, query, (err, res) => {
                 if (err) {
                     console.log(err.message);
@@ -290,7 +286,6 @@ function addDepartment() {
 };
 
 // reformatting everything, nesting secondary prompt to allow user to directly view the roles table they've just added something to
-// try to find out why the +1 usage here is working fine where the +1 usage in the updateManager() and addEmployee() functions aren't
 function addRole() {
     const getDepartments = new Promise((resolve, reject) => {
         // doing a promise so that user can select from existing departments rather than having to manually enter the department name each time
@@ -383,18 +378,20 @@ function addRole() {
 };
 
 // reformatting everything, nesting secondary prompt to allow user to directly view the employees table they've just added something to
-// needs adjustment to match the updateManager() fixes from AskBCS so that the select manager functionality works correctly
 function addEmployee() {
     // doing a promise so that user can select from existing roles
     const getTitles = new Promise((resolve, reject) => {
         var titleArr = [];
-        const sql = `SELECT role_title FROM roles`;
+        const sql = `SELECT r_id, role_title FROM roles`;
         db.query(sql, (err, res) => {
             if (err) {
                 console.log(err.message);
             }
             for (var i = 0; i < res.length; i++) {
-                titleArr.push(Object.values(res[i])[0]);
+                titleArr.push({
+                    name: Object.values(res[i])[1],
+                    value: Object.values(res[i])[0],
+                });
             }
             resolve(titleArr);
         });
@@ -404,7 +401,7 @@ function addEmployee() {
     const getActiveManagers = new Promise((resolve, reject) => {
         var activeManagArr = [];
         const sql = `
-        SELECT DISTINCT concat(m.first_name, ' ', m.last_name) AS manager 
+        SELECT DISTINCT m.emp_id, concat(m.first_name, ' ', m.last_name) AS manager 
         FROM employees e, employees m 
         WHERE m.emp_id = e.manager_id`;
         db.query(sql, (err, res) => {
@@ -412,7 +409,10 @@ function addEmployee() {
                 console.log(err.message);
             }
             for (var i = 0; i < res.length; i++) {
-                activeManagArr.push(Object.values(res[i])[0]);
+                activeManagArr.push({
+                    name: Object.values(res[i])[1],
+                    value: Object.values(res[i])[0],
+                });
             }
             activeManagArr.push("Employee Does Not Have A Manager");
             activeManagArr.push("Create New Manager For This Employee");
@@ -424,14 +424,17 @@ function addEmployee() {
     const getEmployees = new Promise((resolve, reject) => {
         var empArr = [];
         const sql = `
-        SELECT first_name, last_name 
+        SELECT emp_id, first_name, last_name 
         FROM employees`;
         db.query(sql, (err, res) => {
             if (err) {
                 console.log(err.message);
             }
             for (var i = 0; i < res.length; i++) {
-                empArr.push(Object.values(res[i])[0] + " " + Object.values(res[i])[1]);
+                empArr.push({
+                    name: Object.values(res[i])[1] + ' ' + Object.values(res[i])[2],
+                    value: Object.values(res[i])[0],
+                });
             }
             empArr.push("Manager Already Selected")
             resolve(empArr);
@@ -471,37 +474,18 @@ function addEmployee() {
                 name: "roleId",
                 message: "What role does the new employee perform?",
                 choices: titleArr,
-                filter: (roleIdInput) => {
-                    if (roleIdInput) {
-                        return titleArr.indexOf(roleIdInput) + 1;
-                    }
-                },
             },
             {
                 type: "list",
                 name: "managerId",
-                message: "Who is this employee's manager?",
+                message: "Who is this employee's manager? (If assigning to someone who is not already a manager, choose Create New Manager For This Employee)",
                 choices: activeManagArr,
-                filter: (managerIdInput) => {
-                    if (managerIdInput === "Employee Does Not Have A Manager" || managerIdInput === "Create New Manager For This Employee") {
-                        return managerIdInput;
-                    } else {
-                        return activeManagArr.indexOf(managerIdInput) + 1;
-                    }
-                },
             },
             {
                 type: "list",
                 name: "newManagerId",
-                message: "Which other employee will be the new employee's manager?",
+                message: "Which other employee will be the new employee's manager? (If manager was selected in prior question, choose Manager Already Selected)",
                 choices: empArr,
-                filter: (newManagerIdInput) => {
-                    if (newManagerIdInput === "Manager Already Selected") {
-                        return newManagerIdInput;
-                    } else {
-                        return empArr.indexOf(newManagerIdInput) + 1;
-                    }
-                },
             },
         ]).then(({ firstName, lastName, roleId, managerId, newManagerId}) => {
             // if managerId = 0 or they don't have a manager, they ARE a manager with manager_id of NULL
@@ -704,40 +688,18 @@ function updateManager() {
                         name: 'employeeName',
                         message: 'Which employee needs updating?',
                         choices: empArr,
-                        // filter: (employeeNameInput) => {
-                        //     if (employeeNameInput) {
-                        //         return empArr.indexOf(employeeNameInput) + 1;
-                        //     }
-                        // },
                     },
                     {
                         type: 'list',
                         name: 'managerId',
                         message: 'Who is their new manager? (If assigning to someone who is not already a manager, choose Create New Manager For This Employee)',
                         choices: activeManagArr,
-                        // filter: (managerIdInput) => {
-                        //     if (
-                        //         managerIdInput === 'Employee No Longer Has A Manager' ||
-                        //         managerIdInput === 'Create New Manager For This Employee'
-                        //     ) {
-                        //         return managerIdInput;
-                        //     } else {
-                        //         return activeManagArr.indexOf(managerIdInput) + 1;
-                        //     }
-                        // },
                     },
                     {
                         type: 'list',
                         name: 'newManagerId',
                         message: 'Which other employee will now be their manager? (If manager was selected in prior question, choose Manager Already Selected)',
                         choices: newManagArr,
-                        // filter: (newManagerIdInput) => {
-                        //     if (newManagerIdInput === 'Manager Already Selected') {
-                        //         return newManagerIdInput;
-                        //     } else {
-                        //         return newManagArr.indexOf(newManagerIdInput) + 1;
-                        //     }
-                        // },
                     },
                 ])
                 .then(({ employeeName, managerId, newManagerId }) => {
@@ -792,140 +754,6 @@ function updateManager() {
         }
     );
 }
-
-// old updateManager() function, reference as needed to compare/contrast to the fixed version and see what exactly was changed if not apparent
-/* function updateManager() {
-    const getActiveManagers = new Promise((resolve, reject) => {
-        var activeManagArr = [];
-        const sql = `
-        SELECT DISTINCT concat(m.first_name, ' ', m.last_name) AS manager 
-        FROM employees e, employees m 
-        WHERE m.emp_id = e.manager_id`;
-        db.query(sql, (err, res) => {
-            if (err) {
-                console.log(err.message);
-            }
-            for (var i = 0; i < res.length; i++) {
-                activeManagArr.push(Object.values(res[i])[0]);
-            }
-            activeManagArr.push("Employee No Longer Has A Manager");
-            activeManagArr.push("Create New Manager For This Employee");
-            resolve(activeManagArr);
-        });
-    });
-
-    const getEmployees = new Promise((resolve, reject) => {
-        var empArr = [];
-        const sql = `
-        SELECT first_name, last_name 
-        FROM employees`;
-        db.query(sql, (err, res) => {
-            if (err) {
-                console.log(err.message);
-            }
-            for (var i = 0; i < res.length; i++) {
-                empArr.push(Object.values(res[i])[0] + " " + Object.values(res[i])[1]);
-            }
-            resolve(empArr);
-        });
-    });
-
-    const getNewManager = new Promise((resolve, reject) => {
-        var newManagArr = [];
-        const sql = `
-        SELECT first_name, last_name
-        FROM employees`;
-        db.query(sql, (err, res) => {
-            if (err) {
-                console.log(err.message);
-            }
-            for (var i = 0; i < res.length; i++) {
-                newManagArr.push(Object.values(res[i])[0] + " " + Object.values(res[i])[1]);
-            }
-            newManagArr.push("Manager Already Selected");
-            resolve(newManagArr);
-        });
-    });
-
-    Promise.all([getActiveManagers, getEmployees, getNewManager]).then(([activeManagArr, empArr, newManagArr]) => {
-        inquirer.prompt([
-            {
-                type: "list",
-                name: "employeeName",
-                message: "Which employee needs updating?",
-                choices: empArr,
-                filter: (employeeNameInput) => {
-                    if (employeeNameInput) {
-                        return empArr.indexOf(employeeNameInput) + 1;
-                    }
-                },
-            },
-            {
-                type: "list",
-                name: "managerId",
-                message: "Who is their new manager?",
-                choices: activeManagArr,
-                filter: (managerIdInput) => {
-                    if (managerIdInput === "Employee No Longer Has A Manager" || managerIdInput === "Create New Manager For This Employee") {
-                        return managerIdInput;
-                    } else {
-                        return activeManagArr.indexOf(managerIdInput) + 1;
-                    }
-                },
-            },
-            {
-                type: "list",
-                name: "newManagerId",
-                message: "Which other employee will now be their manager?",
-                choices: newManagArr,
-                filter: (newManagerIdInput) => {
-                    if (newManagerIdInput === "Manager Already Selected") {
-                        return newManagerIdInput;
-                    } else {
-                        return newManagArr.indexOf(newManagerIdInput) + 1;
-                    }
-                },
-            },
-        ]).then(({ employeeName, managerId, newManagerId }) => {
-            console.log(employeeName + " will be updated!\n")
-            const getManagerId = () => {
-                if (managerId < 1 || managerId === "Employee No Longer Has A Manager") {
-                    return null;
-                } else if (managerId === "Create New Manager For This Employee" && newManagerId === "Manager Already Selected") {
-                    console.log("No manager was selected, please use the 'Update An Employee Manager' function to add one!");
-                    return null;
-                } else if (managerId === "Create New Manager For This Employee" && newManagerId !== "Manager Already Selected") {
-                    return newManagerId;
-                } else {
-                    return managerId;
-                };
-            };
-            const managersId = getManagerId();
-            const sql = "UPDATE employees SET manager_id = ? WHERE emp_id = ?";
-            const query = [
-                managersId,
-                employeeName
-            ];
-            db.query(sql, query, (err, res) => {
-                if (err) {
-                    console.log(err.message);
-                }
-                console.log(res.affectedRows + " Employee Manager updated!\n");
-                inquirer.prompt([{
-                    type: "confirm",
-                    name: "viewResults",
-                    message: "Would you like to see the updated Employee?"
-                }]).then(({ viewResults }) => {
-                    if (viewResults) {
-                        viewEmployees();
-                    } else {
-                        createWorkforce();
-                    }
-                });
-            });
-        });
-    });
-}; */
 
 // add functions to delete departments, roles and employees!!!
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
